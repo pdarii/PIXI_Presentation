@@ -445,44 +445,400 @@ anchor.x та anchor.y відображають у відсотках роз�
 
 Спрайт з tileset 
 
-Весь  tileset  192 на 192 pixels
+Весь  tileset  192 на 192 pixels, кожна картинка 32 на 32 pixel. Зберігати та мати доступ до всієї ігрової графіки на тайлсеті - дуже ефективно для процесора та пам*яті, до тогож PIXI оптимізована для цього.
+Ми можемо взяти саб імадж з тайлсету вказавши прямокутну область - з координатами та розміром картинки яка нам необхідно:
 
-The entire tileset is 192 by 192 pixels. Each image is in its own 32 by 32 pixel grid cell. Storing and accessing all your game graphics on a tileset is a very processor and memory efficient way to work with graphics, and Pixi is optimized for this.
-You can capture a sub-image from a tileset by defining a rectangular area that's the same size and position as the sub-image you want to extract. Here's an example of the rocket sub-image that’s been extracted from the tileset.
+СЛАЙД 43
+
+Texture atlas
+
+Якщо працюєш над великою та складною грою - то потрібний швидкий та еффективний спосіб створювати спрайти з тайосетів. В цьому випадку - атлас текстур дуже виручає. 
+Атлас текстур - це JSON файл - який містить позиції та розміри суб картинок з певного тайлсету. Якщо ми використовуємо атлас - то все що нам треба знати про картинку щоб її показати - це її ім*я. 
+Можна сортувати тайлсет картинки в будь-якому порядку - і JSON файл буде слідкувати за їхніми розмірами та позиціями за нас. Це дуже зручно - так як розміри та позиції картинок не захардкожені в грі чи программі.
+Якщо ми робим зміни в тайлсеті, наприклад додаєм картинки, ресайзимо їх чи видаляєм - просто треба перезібрати JSON файл і гра буде використовувати нові данні щоб відображати картинки корректно. В коді нічого міняти не доведеться
+
+PIXI сумісна з стандартним  JSON texture atlas format який вміє пакувати популярна тулза Texture Packer, який є фрішним.
+
+СЛАЙД 44
+
+СЛАЙД 45
+
+Завантаження texture atlas
+
+Щоб завантажити texture atlas в Pixi, ми використовуєм стандартний лоадер. Якщо JSON був згенерований за допомогою Texture Packer,
+він автоматично інтерпретує данні, і створить текстури з кожного тайлсету автоматично.
+
+СЛАЙД 46
+
+Тепер кожна картинка з тайлсету - це індивідуальна текстура в кеші PIXI. Можна отримати доступ до кожної текстури по тому ж імені - яке було з самого початку (“blob.png”, “dungeon.png”, “explorer.png”, і тд.)
+
+Щоб створити спрайти з загружених текстур є 3 способи
+
+СЛАЙД 47
+
+1) TextureCache
+
+СЛАЙД 48
+
+2) Через інстанс лоадера
+
+СЛАЙД 49
+
+3) Через створення аліаса текстур
+
+
+Тепер спробуємо створити підземелля використовуючи те що вже дізнались.
+
+Покажи в едіторі.
+
+TextureCache = PIXI.utils.TextureCache,
+width: 512,
+height: 512,
+
+
+//Define variables that might be used in more 
+//than one function
+let dungeon, explorer, treasure, id;
+
+function setup() {
+
+  //There are 3 ways to make sprites from textures atlas frames
+
+  //1. Access the `TextureCache` directly
+  let dungeonTexture = TextureCache["dungeon.png"];
+  dungeon = new Sprite(dungeonTexture);
+  app.stage.addChild(dungeon);
+
+  //2. Access the texture using throuhg the loader's `resources`:
+  explorer = new Sprite(
+    resources["images/treasureHunter.json"].textures["explorer.png"]
+  );
+  explorer.x = 68;
+
+  //Center the explorer vertically
+  explorer.y = app.stage.height / 2 - explorer.height / 2;
+  app.stage.addChild(explorer);
+
+  //3. Create an optional alias called `id` for all the texture atlas 
+  //frame id textures.
+  id = PIXI.loader.resources["images/treasureHunter.json"].textures; 
+  
+  //Make the treasure box using the alias
+  treasure = new Sprite(id["treasure.png"]);
+  app.stage.addChild(treasure);
+
+  //Position the treasure next to the right edge of the canvas
+  treasure.x = app.stage.width - treasure.width - 48;
+  treasure.y = app.stage.height / 2 - treasure.height / 2;
+  app.stage.addChild(treasure);
+}
+
+
+Проведи аналіз коду...
+
+Тепер давайте додамо на стейдж монстрів та двері
+
+Покажи в едіторі.
+
+
+//Make the exit door
+  door = new Sprite(id["door.png"]); 
+  door.position.set(32, 0);
+  app.stage.addChild(door);
+
+  //Make the blobs
+  let numberOfBlobs = 6,
+      spacing = 48,
+      xOffset = 150;
+
+  //Make as many blobs as there are `numberOfBlobs`
+  for (let i = 0; i < numberOfBlobs; i++) {
+
+    //Make a blob
+    let blob = new Sprite(id["blob.png"]);
+
+    //Space each blob horizontally according to the `spacing` value.
+    //`xOffset` determines the point from the left of the screen
+    //at which the first blob should be added.
+    let x = spacing * i + xOffset;
+
+    //Give the blob a random y position
+    //(`randomInt` is a custom function - see below)
+    let y = randomInt(0, app.stage.height - blob.height);
+
+    //Set the blob's position
+    blob.x = x;
+    blob.y = y;
+
+    //Add the blob sprite to the stage
+    app.stage.addChild(blob);
+
+
+
+//The `randomInt` helper function
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 
 
 
 
 
+Тепер навчимо їх рухатись
+
+Ми вмієм малювати спрайти, - тепер щоб їх рухати - нам потрібно створити цикл використовуючи ticker PIXI - це називається game loop.
+Будь який код всередині game loop буде оновлювати 60 раз в секунду. Напишемо код - який буде рухати спрайт праворуч зі швидкість 1px у фрейм.
+
+
+Покажи в едіторі.
+
+
+function setup() {
+  //Start the game loop by adding the `gameLoop` function to
+  //Pixi's `ticker` and providing it with a `delta` argument.
+  app.ticker.add(delta => gameLoop(delta));
+}
+
+function gameLoop(delta){
+  //Move the explorer 1 pixel 
+    explorer.x += 1;
+}
+
+СЛАЙД 50
+
+
+Будь яка функція - яку ми додамо до Pixi's ticker буде викликана 60 раз в секунду, також ми передали функції delta - для чого?
+
+Значення delta - відповідає за значення fractional lag між frames ми можемо додавати його до позиції щоб зробити анімацію незалежною від фреймрейту.
+
+Покажи в едіторі.
+
+explorer.x += 1 + delta;
+
+Чи ми це додамо - чи ні, це здебільшого естетичний вибір, еффект буде видно тільки якщо анімація буде не справлятись з фреймретом 60фпс
+
+Щоб створити game loop не обов*язково використовувати тікер, можна обійтись звичайним requestAnimationFrame
+
+
+СЛАЙД 51
+
+
+Покажи в едіторі.
+
+function gameLoop() {
+
+  //Call this `gameLoop` function on the next screen refresh
+  //(which happens 60 times per second)
+  requestAnimationFrame(gameLoop);
+
+  //Move the cat
+  explorer.x += 1;
+}
+
+//Start the loop
+gameLoop();
+
+
+СЛАЙД 52
+
+
+Використання швидкості
+
+Щоб у нас було більше гнучкості - добра ідея контролювати швидкість руху спрайту, для цього є два параметри vx та vy.
+По горизонталі та по вертикалі. Замість того щоб міняти в спрайті x та y напряму, спочатку краще змінити швидкість. Це нам дає більше керування.
+
+задамо 
+нашому персонажу стартові параметри швидкості, при них він буде стояти
+
+explorer.vx = 0;
+explorer.vy = 0;
+
+та оновимо gameloop
+
+function gameLoop(delta){
+
+    //Update the explorer's velocity
+    explorer.vx = 1;
+    explorer.vy = 1;
+
+    //Apply the velocity values to the explorer's 
+    //position to make it move
+    explorer.x += explorer.vx;
+    explorer.y += explorer.vy;
+
+}
+
+СЛАЙД 53
+
+Стани гри
+
+Незалежно від стиля програмування, щоб допомогти нашому коду - PIXI рекомендує наступну структуру для ігрового цикла
+
+//Set the game state
+state = play;
+ 
+//Start the game loop 
+app.ticker.add(delta => gameLoop(delta));
+
+function gameLoop(delta){
+
+  //Update the current game state:
+  state(delta);
+}
+
+function play(delta) {
+
+  //Move the explorer 1 pixel to the right each frame
+  explorer.vx = 1
+  explorer.x += explorer.vx;
+}
+
+Тут ми бачимо що  функція gameLoop викликає функцію state 60 разів на секунду і код в play теж виконається 60 разів на секунду.
+
+
+СЛАЙД 54
+
+Керування з клавіатури
+
+function keyboard(keyCode) {
+  let key = {};
+  key.code = keyCode;
+  key.isDown = false;
+  key.isUp = true;
+  key.press = undefined;
+  key.release = undefined;
+  //The `downHandler`
+  key.downHandler = event => {
+    if (event.keyCode === key.code) {
+      if (key.isUp && key.press) key.press();
+      key.isDown = true;
+      key.isUp = false;
+    }
+    event.preventDefault();
+  };
+
+  //The `upHandler`
+  key.upHandler = event => {
+    if (event.keyCode === key.code) {
+      if (key.isDown && key.release) key.release();
+      key.isDown = false;
+      key.isUp = true;
+    }
+    event.preventDefault();
+  };
+
+  //Attach event listeners
+  window.addEventListener(
+    "keydown", key.downHandler.bind(key), false
+  );
+  window.addEventListener(
+    "keyup", key.upHandler.bind(key), false
+  );
+  return key;
+}
+
+let keyObject = keyboard(asciiKeyCodeNumber);
+
+keyObject.press = () => {
+  //key object pressed
+};
+keyObject.release = () => {
+  //key object released
+};
+
+
+Покажи в едіторі.
+
+
+          //Capture the keyboard arrow keys
+            let left = keyboard(37),
+                up = keyboard(38),
+                right = keyboard(39),
+                down = keyboard(40);
+            //Left arrow key `press` method
+            left.press = function () {
+                //Change the explorer's velocity when the key is pressed
+                explorer.vx = -5;
+                explorer.vy = 0;
+            };
+            //Left arrow key `release` method
+            left.release = function () {
+                //If the left arrow has been released, and the right arrow isn't down,
+                //and the explorer isn't moving vertically:
+                //Stop the explorer
+                if (!right.isDown && explorer.vy === 0) {
+                    explorer.vx = 0;
+                }
+            };
+            //Up
+            up.press = function () {
+                explorer.vy = -5;
+                explorer.vx = 0;
+            };
+            up.release = function () {
+                if (!down.isDown && explorer.vx === 0) {
+                    explorer.vy = 0;
+                }
+            };
+            //Right
+            right.press = function () {
+                explorer.vx = 5;
+                explorer.vy = 0;
+            };
+            right.release = function () {
+                if (!left.isDown && explorer.vy === 0) {
+                    explorer.vx = 0;
+                }
+            };
+            //Down
+            down.press = function () {
+                explorer.vy = 5;
+                explorer.vx = 0;
+            };
+            down.release = function () {
+                if (!up.isDown && explorer.vx === 0) {
+                    explorer.vy = 0;
+                }
+            };
 
 
 
 
+function gameLoop() {
+    //use the explorer's velocity to make it move
+    explorer.x += explorer.vx;
+    explorer.y += explorer.vy;
+  }
 
 
+СЛАЙД 55
 
+Групування Спрайтів
 
+СЛАЙД 56
 
+Групі можна задавати позицію
+animals.position.set(64, 64);
 
+У Групи можна отримати її розмір
+console.log(animals.width);
 
+Групі можна задати розмір
+animals.width = 200;
 
+У картинок в групі є локальна та глобальна позиція.
 
+СЛАЙД 57
 
+У PIXI звичайно є примітиви
 
+СЛАЙД 58
 
+Текст
 
-
-
-
-
-
-
-
-
-
-
-
-
+message.text = "Text changed!";
+message.style = {fill: "black", font: "16px PetMe64"};
+message.style = {wordWrap: true, wordWrapWidth: 100, align: center};
 
 
 

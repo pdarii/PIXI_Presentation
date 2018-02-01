@@ -14,11 +14,14 @@ let Application = PIXI.Application,
     loader = PIXI.loader,
     resources = PIXI.loader.resources,
     Sprite = PIXI.Sprite;
+    TextureCache = PIXI.utils.TextureCache;
+
+    let dungeon, explorer, treasure, id;
 
 //Create a Pixi Application
 let app = new Application({ 
-    width: 256, 
-    height: 256,                       
+    width: 512,
+    height: 512,                     
     antialias: true, 
     transparent: false, 
     resolution: 1
@@ -30,17 +33,187 @@ document.body.appendChild(app.view);
 
 //load an image and run the `setup` function when it's done
 loader
-  .add("images/cat.png")
+  .add("images/treasureHunter.json")
   .load(setup);
 
 //This `setup` function will run when the image has loaded
 function setup() {
+ //There are 3 ways to make sprites from textures atlas frames
 
-  //Create the cat sprite
-  let cat = new Sprite(resources["images/cat.png"].texture);
+  //1. Access the `TextureCache` directly
+  let dungeonTexture = TextureCache["dungeon.png"];
+  dungeon = new Sprite(dungeonTexture);
+  app.stage.addChild(dungeon);
+
+  //2. Access the texture using throuhg the loader's `resources`:
+  explorer = new Sprite(
+    resources["images/treasureHunter.json"].textures["explorer.png"]
+  );
+  explorer.x = 68;
+  explorer.vx = 0;
+  explorer.vy = 0;
+
+  //Center the explorer vertically
+  explorer.y = app.stage.height / 2 - explorer.height / 2;
+  app.stage.addChild(explorer);
+
+  //3. Create an optional alias called `id` for all the texture atlas 
+  //frame id textures.
+  id = PIXI.loader.resources["images/treasureHunter.json"].textures; 
   
-  //Add the cat to the stage
-  app.stage.addChild(cat);
+  //Make the treasure box using the alias
+  treasure = new Sprite(id["treasure.png"]);
+  app.stage.addChild(treasure);
+
+  //Position the treasure next to the right edge of the canvas
+  treasure.x = app.stage.width - treasure.width - 48;
+  treasure.y = app.stage.height / 2 - treasure.height / 2;
+  app.stage.addChild(treasure);
+
+
+ //Make the exit door
+  door = new Sprite(id["door.png"]); 
+  door.position.set(32, 0);
+  app.stage.addChild(door);
+
+  //Make the blobs
+  let numberOfBlobs = 6,
+      spacing = 48,
+      xOffset = 150;
+
+  //Make as many blobs as there are `numberOfBlobs`
+  for (let i = 0; i < numberOfBlobs; i++) {
+
+    //Make a blob
+    let blob = new Sprite(id["blob.png"]);
+
+    //Space each blob horizontally according to the `spacing` value.
+    //`xOffset` determines the point from the left of the screen
+    //at which the first blob should be added.
+    let x = spacing * i + xOffset;
+
+    //Give the blob a random y position
+    //(`randomInt` is a custom function - see below)
+    let y = randomInt(0, app.stage.height - blob.height);
+
+    //Set the blob's position
+    blob.x = x;
+    blob.y = y;
+
+    //Add the blob sprite to the stage
+    app.stage.addChild(blob);
+
+
+     //Capture the keyboard arrow keys
+     let left = keyboard(37),
+                up = keyboard(38),
+                right = keyboard(39),
+                down = keyboard(40);
+            //Left arrow key `press` method
+            left.press = function () {
+                //Change the explorer's velocity when the key is pressed
+                explorer.vx = -5;
+                explorer.vy = 0;
+            };
+            //Left arrow key `release` method
+            left.release = function () {
+                //If the left arrow has been released, and the right arrow isn't down,
+                //and the explorer isn't moving vertically:
+                //Stop the explorer
+                if (!right.isDown && explorer.vy === 0) {
+                    explorer.vx = 0;
+                }
+            };
+            //Up
+            up.press = function () {
+                explorer.vy = -5;
+                explorer.vx = 0;
+            };
+            up.release = function () {
+                if (!down.isDown && explorer.vx === 0) {
+                    explorer.vy = 0;
+                }
+            };
+            //Right
+            right.press = function () {
+                explorer.vx = 5;
+                explorer.vy = 0;
+            };
+            right.release = function () {
+                if (!left.isDown && explorer.vy === 0) {
+                    explorer.vx = 0;
+                }
+            };
+            //Down
+            down.press = function () {
+                explorer.vy = 5;
+                explorer.vx = 0;
+            };
+            down.release = function () {
+                if (!up.isDown && explorer.vx === 0) {
+                    explorer.vy = 0;
+                }
+            };
+
+
+
+
+
+
+
+
+    app.ticker.add(delta => gameLoop(delta));
+
+
+}
+
+}
+
+ //The `keyboard` helper function
+ function keyboard(keyCode) {
+            var key = {};
+            key.code = keyCode;
+            key.isDown = false;
+            key.isUp = true;
+            key.press = undefined;
+            key.release = undefined;
+            //The `downHandler`
+            key.downHandler = function (event) {
+                if (event.keyCode === key.code) {
+                    if (key.isUp && key.press) key.press();
+                    key.isDown = true;
+                    key.isUp = false;
+                }
+                event.preventDefault();
+            };
+            //The `upHandler`
+            key.upHandler = function (event) {
+                if (event.keyCode === key.code) {
+                    if (key.isDown && key.release) key.release();
+                    key.isDown = false;
+                    key.isUp = true;
+                }
+                event.preventDefault();
+            };
+            //Attach event listeners
+            window.addEventListener(
+                "keydown", key.downHandler.bind(key), false
+            );
+            window.addEventListener(
+                "keyup", key.upHandler.bind(key), false
+            );
+            return key;
+        }
+
+function gameLoop() {
+    //use the explorer's velocity to make it move
+    explorer.x += explorer.vx;
+    explorer.y += explorer.vy;
+  }
+
+//The `randomInt` helper function
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
     </script>
